@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Trophy } from "lucide-react";
 import { cars, type Car } from "@/lib/cars";
-import { loadSession, type ShortlistSession } from "@/lib/session";
+import { loadSession, clearSession, type ShortlistSession } from "@/lib/session";
 import type { CompareResult } from "@/lib/gemini";
 import type { TCOResult } from "@/lib/tco";
 
@@ -96,6 +96,13 @@ const CATEGORY_LABELS: Record<keyof CompareResult["category_winners"], string> =
   best_for_family: "Best for Family",
 };
 
+const CATEGORY_STYLES: Record<keyof CompareResult["category_winners"], string> = {
+  best_value: "border-violet-500/40 text-violet-300",
+  best_mileage: "border-blue-500/40 text-blue-300",
+  best_safety: "border-green-500/40 text-green-300",
+  best_for_family: "border-amber-500/40 text-amber-300",
+};
+
 function carName(car: Car): string {
   return `${car.make} ${car.model}`;
 }
@@ -166,12 +173,12 @@ function CompareContent() {
 
   if (loaded && (!session || selectedCars.length < 2)) {
     return (
-      <main className="flex flex-1 flex-col items-center justify-center gap-4 text-center px-6">
-        <p className="text-lg text-zinc-300">Nothing to compare yet.</p>
+      <main className="flex flex-1 flex-col items-center justify-center gap-4 bg-[#0A0A0F] text-center px-6">
+        <p className="text-lg text-[#8B8B9E]">Nothing to compare yet.</p>
         <button
           type="button"
           onClick={() => router.push("/results")}
-          className="rounded-full bg-amber-500 px-6 py-3 font-semibold text-black hover:bg-amber-400"
+          className="rounded-xl bg-[#6C63FF] px-6 py-3 font-semibold text-white hover:brightness-110"
         >
           Back to Shortlist
         </button>
@@ -183,32 +190,50 @@ function CompareContent() {
 
   const tcoByCarId = new Map((session?.tco ?? []).map((t) => [t.car_id, t]));
 
+  function handleStartOver() {
+    clearSession();
+    router.push("/");
+  }
+
   return (
-    <main className="flex flex-1 flex-col px-6 py-12">
+    <>
+      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-[#2A2A38] bg-[#0A0A0F]/80 px-6 py-4 backdrop-blur">
+        <span className="font-bold text-white">ShortlistAI</span>
+        <button
+          type="button"
+          onClick={handleStartOver}
+          className="text-sm text-[#8B8B9E] hover:text-white"
+        >
+          Start Over
+        </button>
+      </header>
+      <main className="flex flex-1 flex-col bg-[#0A0A0F] px-6 py-12">
       <div className="mx-auto w-full max-w-5xl space-y-6">
         <h1 className="text-3xl font-bold text-white">
           Comparing {selectedCars.length} Cars
         </h1>
 
         {isLoading && (
-          <div className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 text-zinc-400">
-            <Loader2 size={20} className="animate-spin" />
+          <div className="flex items-center gap-3 rounded-xl border border-[#2A2A38] bg-[#13131A] p-6 text-[#8B8B9E]">
+            <Loader2 size={20} className="animate-spin text-[#6C63FF]" />
             Comparing your shortlisted cars...
           </div>
         )}
 
         {!isLoading && result && (
           <>
-            <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-6">
-              <p className="flex items-center gap-2 text-lg font-bold text-amber-300">
-                <Trophy size={20} />
-                Our Pick for You:{" "}
+            <div className="rounded-2xl border border-[#6C63FF40] bg-gradient-to-r from-[#6C63FF20] to-[#13131A] p-6">
+              <p className="text-xs font-semibold uppercase tracking-widest text-[#6C63FF]">
+                Our Pick for You
+              </p>
+              <p className="mt-2 flex items-center gap-2 text-2xl font-bold text-white">
+                <Trophy size={20} className="text-[#6C63FF]" />
                 {carName(
                   selectedCars.find((c) => c.id === result.verdict.top_pick_car_id) ??
                     selectedCars[0]
                 )}
               </p>
-              <p className="mt-2 text-base text-amber-100">{result.verdict.verdict_line}</p>
+              <p className="mt-2 text-[#8B8B9E]">{result.verdict.verdict_line}</p>
             </div>
 
             <div className="flex flex-wrap gap-3">
@@ -219,11 +244,9 @@ function CompareContent() {
                   return (
                     <div
                       key={key}
-                      className="rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm text-zinc-300"
+                      className={`rounded-full border px-4 py-1.5 text-sm ${CATEGORY_STYLES[key]}`}
                     >
-                      <span className="font-semibold text-zinc-200">
-                        {CATEGORY_LABELS[key]}:
-                      </span>{" "}
+                      <span className="font-semibold">{CATEGORY_LABELS[key]}:</span>{" "}
                       {winner ? carName(winner) : "—"}
                     </div>
                   );
@@ -234,26 +257,35 @@ function CompareContent() {
         )}
 
         {!isLoading && !result && (
-          <div className="rounded-xl border border-zinc-700 bg-zinc-800/50 p-4 text-sm text-zinc-400">
+          <div className="rounded-xl border border-[#2A2A38] bg-[#1C1C26] p-4 text-sm text-[#8B8B9E]">
             AI comparison is temporarily unavailable — showing spec table only.
           </div>
         )}
 
-        <div className="overflow-x-auto rounded-2xl border border-zinc-800">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-xl border border-[#2A2A38]">
+          <table className="w-full divide-y divide-[#2A2A38] text-sm">
             <thead>
-              <tr className="border-b border-zinc-800 bg-zinc-900/70">
-                <th className="p-4 text-left font-semibold text-zinc-400">Spec</th>
+              <tr className="bg-[#1C1C26]">
+                <th className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-[#8B8B9E]">
+                  Spec
+                </th>
                 {selectedCars.map((car) => (
-                  <th key={car.id} className="p-4 text-left font-semibold text-white">
-                    {carName(car)}
-                    <div className="text-xs font-normal text-zinc-500">{car.variant}</div>
+                  <th
+                    key={car.id}
+                    className="p-4 text-left text-xs font-semibold uppercase tracking-wide text-[#8B8B9E]"
+                  >
+                    <span className="block text-sm font-semibold text-white normal-case tracking-normal">
+                      {carName(car)}
+                    </span>
+                    <span className="font-normal normal-case tracking-normal text-[#55556A]">
+                      {car.variant}
+                    </span>
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody>
-              {SPEC_ROWS.map((row) => {
+            <tbody className="divide-y divide-[#2A2A38]">
+              {SPEC_ROWS.map((row, rowIndex) => {
                 const values = selectedCars.map((car) =>
                   row.getSortValue(car, tcoByCarId.get(car.id))
                 );
@@ -261,8 +293,11 @@ function CompareContent() {
                 const allTied = values.every((v) => v === values[0]);
 
                 return (
-                  <tr key={row.label} className="border-b border-zinc-800/60">
-                    <td className="p-4 text-zinc-400">{row.label}</td>
+                  <tr
+                    key={row.label}
+                    className={rowIndex % 2 === 0 ? "bg-[#13131A]" : "bg-[#0A0A0F]"}
+                  >
+                    <td className="p-4 text-[#8B8B9E]">{row.label}</td>
                     {selectedCars.map((car, i) => {
                       const tco = tcoByCarId.get(car.id);
                       const isWinner =
@@ -275,8 +310,8 @@ function CompareContent() {
                           key={car.id}
                           className={`p-4 ${
                             isWinner
-                              ? "bg-emerald-500/10 font-semibold text-emerald-400"
-                              : "text-zinc-300"
+                              ? "bg-green-500/10 font-semibold text-green-400"
+                              : "text-[#F1F1F3]"
                           }`}
                         >
                           {row.getValue(car, tco)}
@@ -291,21 +326,27 @@ function CompareContent() {
         </div>
 
         {!isLoading && result && (
-          <p className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 text-sm text-zinc-300">
-            {result.tradeoff_summary}
-          </p>
+          <div className="rounded-2xl border border-[#2A2A38] bg-[#13131A] p-6">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#55556A]">
+              AI Tradeoff Analysis
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-[#8B8B9E]">
+              {result.tradeoff_summary}
+            </p>
+          </div>
         )}
 
         <div className="pt-2 text-center">
           <button
             type="button"
             onClick={() => router.push("/results")}
-            className="rounded-full border border-zinc-700 px-6 py-3 text-sm font-medium text-zinc-300 hover:border-zinc-500"
+            className="rounded-xl border border-[#2A2A38] px-6 py-3 text-sm font-medium text-[#8B8B9E] hover:text-white hover:border-[#55556A]"
           >
             Back to Shortlist
           </button>
         </div>
       </div>
-    </main>
+      </main>
+    </>
   );
 }
