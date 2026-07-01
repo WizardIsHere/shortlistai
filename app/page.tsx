@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { VERSION } from "@/lib/version";
 
 export default function Home() {
   return (
@@ -34,6 +35,8 @@ export default function Home() {
           ))}
         </div>
       </div>
+
+      <span className="absolute bottom-4 text-xs text-[#55556A]">v{VERSION}</span>
     </main>
   );
 }
